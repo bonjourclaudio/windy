@@ -1,8 +1,11 @@
 let windDirectionDeg = 0;
 let windCardinal = "N";
 let lastUpdated = "loading...";
-let useSliderControl = false;
+let useLiveWind = true;
 let sliderWindDeg = 0;
+let windSliderEl = null;
+let windValueEl = null;
+let windLiveBtnEl = null;
 
 let hudEl;
 let avatarPhoto = null;
@@ -13,6 +16,7 @@ let uploadBtn, shirtSelect, pantsSelect;
 let bgVideo;
 let smokeParticles = [];
 let trashImg = null;
+let doorImg = null;
 
 const WIND_URL =
   "https://api.open-meteo.com/v1/forecast?latitude=47.3896&longitude=8.5200&current=wind_direction_10m";
@@ -29,6 +33,9 @@ function setup() {
   // Load trash image
   trashImg = loadImage("trash.jpeg");
 
+  // Load door image
+  doorImg = loadImage("door.png");
+
   // Load background video
   bgVideo = createVideo("bg.mp4");
   bgVideo.loop();
@@ -37,14 +44,23 @@ function setup() {
   setupAvatarUI();
 
   // Setup wind direction slider
-  const windSlider = document.getElementById("windSlider");
-  const windValue = document.getElementById("windValue");
-  if (windSlider && windValue) {
-    windSlider.addEventListener("input", (e) => {
+  windSliderEl = document.getElementById("windSlider");
+  windValueEl = document.getElementById("windValue");
+  windLiveBtnEl = document.getElementById("windLiveBtn");
+
+  if (windSliderEl && windValueEl) {
+    windSliderEl.addEventListener("input", (e) => {
       sliderWindDeg = parseFloat(e.target.value);
-      windValue.textContent = sliderWindDeg.toFixed(1);
-      useSliderControl = true;
+      windValueEl.textContent = sliderWindDeg.toFixed(1);
+      useLiveWind = false;
       windDirectionDeg = sliderWindDeg;
+    });
+  }
+
+  if (windLiveBtnEl) {
+    windLiveBtnEl.addEventListener("click", () => {
+      useLiveWind = true;
+      fetchWind();
     });
   }
 
@@ -118,6 +134,7 @@ function draw() {
   drawGrid(boxSize);
   drawAxes(boxSize);
   drawBoxFrame(boxSize);
+  drawDoor(boxSize);
   drawWindIndicator(boxSize);
   drawCompassLabels(boxSize);
   drawAvatar(boxSize);
@@ -131,14 +148,18 @@ function draw() {
 // 🌬 FETCH WIND
 //
 function fetchWind() {
-  // Skip fetch if user is manually controlling with slider
-  if (useSliderControl) return;
   fetch(WIND_URL)
     .then((res) => res.json())
     .then((data) => {
       const deg = data?.current?.wind_direction_10m;
       if (typeof deg === "number") {
-        windDirectionDeg = deg;
+        if (useLiveWind) {
+          windDirectionDeg = deg;
+          if (windSliderEl && windValueEl) {
+            windSliderEl.value = windDirectionDeg.toFixed(1);
+            windValueEl.textContent = windDirectionDeg.toFixed(1);
+          }
+        }
         windCardinal = degreesToCardinal(windDirectionDeg);
         lastUpdated = new Date().toLocaleTimeString();
         // Clear old smoke when wind changes direction
@@ -220,6 +241,23 @@ function drawBoxFrame(size) {
   stroke(40);
   strokeWeight(1.5);
   box(size);
+  pop();
+}
+
+function drawDoor(boxSize) {
+  if (!doorImg) return;
+
+  push();
+  const half = boxSize / 2;
+  const doorW = boxSize * 0.25 * 1.4;
+  const doorH = boxSize * 0.45 * 1.4;
+  const groundY = half;
+
+  // North side (negative Z)
+  translate(0, groundY - doorH / 2, -half + 1);
+  texture(doorImg);
+  noStroke();
+  plane(doorW, doorH);
   pop();
 }
 
