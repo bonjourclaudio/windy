@@ -1,30 +1,24 @@
 let windDirectionDeg = 0;
 let windCardinal = "N";
 
-let cols, rows;
-let resolution = 100;
-let zoff = 0;
+let camDistance = 600;
+let targetRotation = 0;
+let currentRotation = 0;
 
 function setup() {
-  createCanvas(window.innerWidth, window.innerHeight);
+  createCanvas(window.innerWidth, window.innerHeight, WEBGL);
   textFont("monospace");
-  textSize(16);
-  textAlign(CENTER, CENTER);
-
-  cols = floor(width / resolution);
-  rows = floor(height / resolution);
 
   fetchWind();
   setInterval(fetchWind, 600000);
 }
 
 function draw() {
-  background(0);
-  fill(255);
+  background(255);
 
-  drawFlowField();
+  smoothCamera();
 
-  zoff += 0.01;
+  drawScene();
 }
 
 //
@@ -39,6 +33,9 @@ function fetchWind() {
     .then((data) => {
       windDirectionDeg = data.current.wind_direction_10m;
       windCardinal = degreesToCardinal(windDirectionDeg);
+
+      // update camera target
+      targetRotation = radians(windDirectionDeg);
     })
     .catch((err) => console.error(err));
 }
@@ -51,65 +48,71 @@ function degreesToCardinal(deg) {
 }
 
 //
-// 🌊 PERLIN FLOW FIELD
+// 🎥 CAMERA
 //
-function drawFlowField() {
-  let yoff = 0;
+function smoothCamera() {
+  // smooth transition
+  currentRotation = lerp(currentRotation, targetRotation, 0.05);
 
-  for (let y = 0; y < rows; y++) {
-    let xoff = 0;
+  let camX = camDistance * sin(currentRotation);
+  let camZ = camDistance * cos(currentRotation);
+  let camY = 200; // slight elevation
 
-    for (let x = 0; x < cols; x++) {
-      // 🌬 Base wind vector (real wind)
-      let windVector = p5.Vector.fromAngle(radians(windDirectionDeg));
-
-      // 🌊 Noise turbulence vector
-      let noiseAngle = noise(xoff, yoff, zoff) * TWO_PI * 2;
-      let noiseVector = p5.Vector.fromAngle(noiseAngle);
-
-      // Blend them (wind dominant)
-      windVector.mult(1.5); // strength of real wind
-      noiseVector.mult(0.6); // turbulence strength
-
-      let finalVector = p5.Vector.add(windVector, noiseVector);
-
-      let angle = finalVector.heading();
-
-      let char = angleToAscii(angle);
-
-      let posX = x * resolution + resolution / 2;
-      let posY = y * resolution + resolution / 2;
-
-      textSize(126);
-      text(char, posX, posY);
-
-      xoff += 0.1;
-    }
-    yoff += 0.1;
-  }
+  camera(
+    camX,
+    camY,
+    camZ, // camera position
+    0,
+    0,
+    0, // look at center
+    0,
+    1,
+    0, // up vector
+  );
 }
 
 //
-// 🔄 Convert angle → ASCII arrow
+// 🧱 SCENE
 //
-function angleToAscii(angle) {
-  let a = angle % TWO_PI;
-  if (a < 0) a += TWO_PI;
+function drawScene() {
+  // grid floor (like blender viewport)
+  stroke(60);
+  strokeWeight(1);
 
-  let slice = TWO_PI / 8;
+  let size = 1000;
+  let step = 50;
 
-  if (a < slice) return "→";
-  if (a < slice * 2) return "↘";
-  if (a < slice * 3) return "↓";
-  if (a < slice * 4) return "↙";
-  if (a < slice * 5) return "←";
-  if (a < slice * 6) return "↖";
-  if (a < slice * 7) return "↑";
-  return "↗";
+  for (let x = -size; x <= size; x += step) {
+    line(x, 0, -size, x, 0, size);
+  }
+
+  for (let z = -size; z <= size; z += step) {
+    line(-size, 0, z, size, 0, z);
+  }
+
+  // origin marker
+  push();
+  noStroke();
+  fill(255, 80, 80);
+  box(40);
+  pop();
+
+  // axis lines
+  strokeWeight(3);
+
+  // X axis (red)
+  stroke(255, 0, 0);
+  line(0, 0, 0, 200, 0, 0);
+
+  // Y axis (green)
+  stroke(0, 255, 0);
+  line(0, 0, 0, 0, -200, 0);
+
+  // Z axis (blue)
+  stroke(0, 0, 255);
+  line(0, 0, 0, 0, 0, 200);
 }
 
 function windowResized() {
   resizeCanvas(window.innerWidth, window.innerHeight);
-  cols = floor(width / resolution);
-  rows = floor(height / resolution);
 }
