@@ -9,6 +9,7 @@ let pantsImg = null;
 let outfitImg = null;
 let uploadBtn, shirtSelect, pantsSelect;
 let bgVideo;
+let smokeParticles = [];
 
 const WIND_URL =
   "https://api.open-meteo.com/v1/forecast?latitude=47.3896&longitude=8.5200&current=wind_direction_10m";
@@ -44,6 +45,60 @@ function draw() {
   // Enable mouse/cursor control (replaces fixed camera)
   orbitControl();
   
+  // Create new smoke particles from avatar position
+  if (frameCount % 2 === 0) {
+    const personHeight = boxSize;
+    const groundY = boxSize / 2;
+    const faceY = groundY - personHeight + 110;
+    const windRad = radians(windDirectionDeg);
+    
+    // Wind direction (smoke flows opposite to wind)
+    const smokeVelX = -sin(windRad) * random(1, 2.5);
+    const smokeVelZ = -cos(windRad) * random(1, 2.5);
+    
+    smokeParticles.push({
+      x: 0,
+      y: faceY,
+      z: 0,
+      vx: smokeVelX,
+      vy: random(0.5, 1.2),
+      vz: smokeVelZ,
+      life: 400,
+      maxLife: 400,
+      size: random(4, 10)
+    });
+  }
+  
+  // Update and draw smoke particles
+  for (let i = smokeParticles.length - 1; i >= 0; i--) {
+    const p = smokeParticles[i];
+    
+    // Update position
+    p.x += p.vx;
+    p.y += p.vy;
+    p.z += p.vz;
+    
+    // Fade out
+    p.life -= 2;
+    
+    if (p.life <= 0) {
+      smokeParticles.splice(i, 1);
+      continue;
+    }
+    
+    // Draw smoke particle
+    push();
+    translate(p.x, p.y, p.z);
+    
+    // Smoke color: white to gray with transparency
+    const alpha = map(p.life, p.maxLife, 0, 100, 0);
+    fill(200, 200, 200, alpha);
+    noStroke();
+    sphere(p.size);
+    
+    pop();
+  }
+  
   drawGrid(boxSize);
   drawAxes(boxSize);
   drawBoxFrame(boxSize);
@@ -66,6 +121,8 @@ function fetchWind() {
         windDirectionDeg = deg;
         windCardinal = degreesToCardinal(windDirectionDeg);
         lastUpdated = new Date().toLocaleTimeString();
+        // Clear old smoke when wind changes direction
+        smokeParticles = smokeParticles.filter(p => p.life > 150);
       }
     })
     .catch(() => {
@@ -103,7 +160,7 @@ function drawGrid(size) {
   const half = size / 2;
   const y = half; // Bottom of the box
 
-  stroke(180);
+  stroke(255);
   strokeWeight(1);
 
   for (let x = -half; x <= half; x += step) {
