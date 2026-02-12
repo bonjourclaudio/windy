@@ -14,6 +14,30 @@
       <source src="bg.mp4" type="video/mp4" />
     </video>
     <div id="hud"></div>
+    <div
+      id="debug-controls"
+      style="
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: rgba(0, 0, 0, 0.7);
+        padding: 15px;
+        border: 2px solid #00ff00;
+        font-family: monospace;
+        color: #00ff00;
+        z-index: 100;
+      "
+    >
+      <label>Wind Direction: <span id="windValue">0</span>°</label><br />
+      <input
+        type="range"
+        id="windSlider"
+        min="0"
+        max="360"
+        value="0"
+        style="width: 200px"
+      />
+    </div>
     <script src="sketch.js"></script>
   </body>
 </html>
