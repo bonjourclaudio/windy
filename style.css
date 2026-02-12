@@ -1,6 +1,15 @@
 body {
   margin: 0;
   overflow: hidden;
-  background: black;
   color: white;
+}
+
+#bgVideo {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: -1;
 }
