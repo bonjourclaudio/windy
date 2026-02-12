@@ -13,3 +13,19 @@ body {
     object-fit: cover;
     z-index: -1;
 }
+
+#hud {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 10;
+  font-family: monospace;
+  font-size: 16px;
+  line-height: 1.4;
+  color: #111;
+  background: rgba(255, 255, 255, 0.75);
+  padding: 8px 10px;
+  border-radius: 6px;
+  white-space: pre;
+  pointer-events: none;
+}

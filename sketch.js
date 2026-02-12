@@ -1,43 +1,57 @@
 let windDirectionDeg = 0;
 let windCardinal = "N";
+let lastUpdated = "loading...";
 
-let camDistance = 600;
+let camDistance = 700;
 let targetRotation = 0;
 let currentRotation = 0;
+let camHeight = 220;
+let hudEl;
+
+const WIND_URL =
+  "https://api.open-meteo.com/v1/forecast?latitude=47.3896&longitude=8.5200&current=wind_direction_10m";
 
 function setup() {
   createCanvas(window.innerWidth, window.innerHeight, WEBGL);
   textFont("monospace");
+  textSize(16);
+  noFill();
+
+  hudEl = document.getElementById("hud");
 
   fetchWind();
-  setInterval(fetchWind, 600000);
+  setInterval(fetchWind, 10000);
 }
 
 function draw() {
-  background(255);
+  background(245);
 
-  smoothCamera();
+  updateCamera();
+  drawGrid();
+  drawAxes();
+  drawOrigin();
 
-  drawScene();
+  updateHud();
 }
 
 //
 // 🌬 FETCH WIND
 //
 function fetchWind() {
-  let url =
-    "https://api.open-meteo.com/v1/forecast?latitude=46.948&longitude=7.447&current=wind_direction_10m";
-
-  fetch(url)
+  fetch(WIND_URL)
     .then((res) => res.json())
     .then((data) => {
-      windDirectionDeg = data.current.wind_direction_10m;
-      windCardinal = degreesToCardinal(windDirectionDeg);
-
-      // update camera target
-      targetRotation = radians(windDirectionDeg);
+      const deg = data?.current?.wind_direction_10m;
+      if (typeof deg === "number") {
+        windDirectionDeg = deg;
+        windCardinal = degreesToCardinal(windDirectionDeg);
+        targetRotation = radians(180 - windDirectionDeg);
+        lastUpdated = new Date().toLocaleTimeString();
+      }
     })
-    .catch((err) => console.error(err));
+    .catch(() => {
+      lastUpdated = "fetch error";
+    });
 }
 
 function degreesToCardinal(deg) {
@@ -50,37 +64,24 @@ function degreesToCardinal(deg) {
 //
 // 🎥 CAMERA
 //
-function smoothCamera() {
-  // smooth transition
+function updateCamera() {
   currentRotation = lerp(currentRotation, targetRotation, 0.05);
 
-  let camX = camDistance * sin(currentRotation);
-  let camZ = camDistance * cos(currentRotation);
-  let camY = 200; // slight elevation
+  const camX = camDistance * sin(currentRotation);
+  const camZ = camDistance * cos(currentRotation);
 
-  camera(
-    camX,
-    camY,
-    camZ, // camera position
-    0,
-    0,
-    0, // look at center
-    0,
-    1,
-    0, // up vector
-  );
+  camera(camX, camHeight, camZ, 0, 0, 0, 0, 1, 0);
 }
 
 //
 // 🧱 SCENE
 //
-function drawScene() {
-  // grid floor (like blender viewport)
-  stroke(60);
-  strokeWeight(1);
+function drawGrid() {
+  const size = 1200;
+  const step = 50;
 
-  let size = 1000;
-  let step = 50;
+  stroke(180);
+  strokeWeight(1);
 
   for (let x = -size; x <= size; x += step) {
     line(x, 0, -size, x, 0, size);
@@ -89,30 +90,50 @@ function drawScene() {
   for (let z = -size; z <= size; z += step) {
     line(-size, 0, z, size, 0, z);
   }
+}
 
-  // origin marker
-  push();
-  noStroke();
-  fill(255, 80, 80);
-  box(40);
-  pop();
-
-  // axis lines
+function drawAxes() {
   strokeWeight(3);
 
   // X axis (red)
   stroke(255, 0, 0);
-  line(0, 0, 0, 200, 0, 0);
+  line(0, 0, 0, 220, 0, 0);
 
   // Y axis (green)
-  stroke(0, 255, 0);
-  line(0, 0, 0, 0, -200, 0);
+  stroke(0, 200, 0);
+  line(0, 0, 0, 0, -220, 0);
 
   // Z axis (blue)
-  stroke(0, 0, 255);
-  line(0, 0, 0, 0, 0, 200);
+  stroke(0, 90, 255);
+  line(0, 0, 0, 0, 0, 220);
+}
+
+function drawOrigin() {
+  push();
+  noStroke();
+  fill(255, 80, 80);
+  box(30);
+  pop();
+}
+
+//
+//
+// 🧾 HUD (DOM overlay)
+//
+function updateHud() {
+  if (!hudEl) return;
+
+  const cameraHeading = normalizeDeg(180 - degrees(currentRotation));
+  hudEl.textContent =
+    `Wind (ZHdK): ${windCardinal} (${windDirectionDeg.toFixed(1)}°)\n` +
+    `Camera heading: ${cameraHeading.toFixed(1)}°\n` +
+    `Updated: ${lastUpdated}`;
 }
 
 function windowResized() {
   resizeCanvas(window.innerWidth, window.innerHeight);
+}
+
+function normalizeDeg(deg) {
+  return ((deg % 360) + 360) % 360;
 }
